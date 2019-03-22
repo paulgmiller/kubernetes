@@ -1161,12 +1161,15 @@ func (dsc *DaemonSetsController) updateDaemonSetStatus(ds *apps.DaemonSet, hash 
 		return fmt.Errorf("couldn't get list of nodes when updating daemon set %#v: %v", ds, err)
 	}
 
-	var desiredNumberScheduled, currentNumberScheduled, numberMisscheduled, numberReady, updatedNumberScheduled, numberAvailable int
+	var desiredNumberScheduled, currentNumberScheduled, numberMisscheduled, numberReady, 
+		updatedNumberScheduled, numberAvailable, onNotReadyNodes int
 	for _, node := range nodeList {
 		wantToRun, _, _, err := dsc.nodeShouldRunDaemonPod(node, ds)
 		if err != nil {
 			return err
 		}
+
+		
 
 		scheduled := len(nodeToDaemonPods[node.Name]) > 0
 
@@ -1182,6 +1185,18 @@ func (dsc *DaemonSetsController) updateDaemonSetStatus(ds *apps.DaemonSet, hash 
 					numberReady++
 					if podutil.IsPodAvailable(pod, ds.Spec.MinReadySeconds, metav1.Now()) {
 						numberAvailable++
+					}
+					else
+					{
+						//We run ds pods on notready nodes by default but do we want to report the pods as unavailable?
+						//kubectl rollous status would have to check this itself if we wanted to get passed unready nodes
+						//logid from CheckNodeConditionPredicate in algorithm/predicates
+						for _, cond := range node.Status.Conditions {
+							// While we want to run on notready nodes 
+							if (cond.Type == v1.NodeReady && cond.Status != v1.ConditionTrue) ||
+							    (cond.Type == v1.NodeNetworkUnavailable && cond.Status != v1.ConditionFalse)
+								onNotReadyNodes++
+						}
 					}
 				}
 				// If the returned error is not nil we have a parse error.
@@ -1200,7 +1215,7 @@ func (dsc *DaemonSetsController) updateDaemonSetStatus(ds *apps.DaemonSet, hash 
 			}
 		}
 	}
-	numberUnavailable := desiredNumberScheduled - numberAvailable
+	numberUnavailable := desiredNumberScheduled - numberAvailable - onNotReadyNodes
 
 	err = storeDaemonSetStatus(dsc.kubeClient.AppsV1().DaemonSets(ds.Namespace), ds, desiredNumberScheduled, currentNumberScheduled, numberMisscheduled, numberReady, updatedNumberScheduled, numberAvailable, numberUnavailable, updateObservedGen)
 	if err != nil {
