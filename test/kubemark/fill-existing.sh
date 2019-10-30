@@ -34,14 +34,15 @@ fi
 
 source "${KUBE_ROOT}/cluster/kubemark/util.sh"
 
-KUBECTL="${KUBE_ROOT}/cluster/kubectl.sh"
+KUBECTL="kubectl"
 KUBEMARK_DIRECTORY="${KUBE_ROOT}/test/kubemark"
 RESOURCE_DIRECTORY="${KUBEMARK_DIRECTORY}/resources"
-LOCAL_KUBECONFIG="${RESOURCE_DIRECTORY}/kubeconfig.kubemark"
+LOCAL_KUBECONFIG="/mnt/c/users/pmiller/.kube/config-vienna-enginetest-westus2-04"
 
 # Generate a random 6-digit alphanumeric tag for the kubemark image.
 # Used to uniquify image builds across different invocations of this script.
-KUBEMARK_IMAGE_TAG=$(head /dev/urandom | tr -dc 'a-z0-9' | fold -w 6 | head -n 1)
+KUBEMARK_IMAGE_TAG="b6c8f491"
+KUBEMARK_IMAGE_REGISTRY="paulgmiller"
 
 # Generate secret and configMap for the hollow-node pods to work, prepare
 # manifests of the hollow-node and heapster replication controllers from
@@ -129,11 +130,6 @@ function create-kube-hollow-node-resources {
 
 ############################### Main Function ########################################
 
-# Setup for hollow-nodes.
-function start-hollow-nodes {
-  # shellcheck disable=SC2154 # Color defined in sourced script
-  
-}
 
 #detect-project &> /dev/null
 #create-kubemark-master
